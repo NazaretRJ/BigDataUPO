@@ -1,5 +1,6 @@
 import happybase
 import sys
+import csv
 
 connection = happybase.Connection('localhost')
 
@@ -23,8 +24,31 @@ for i in range(colums):
     name = 'measurecf' + str(i)
     families[name] = dict(max_versions=1)
     
-#connection.create_table('sensorsdb', families)
+if( connection.is_table_enabled('sensorsdb')):
+    connection.delete_table('sensorsdb', True) 
 
-#table = connection.table('sensorsdb')
+connection.create_table('sensorsdb', families)
 
-print(connection.tables()) 
+table = connection.table('sensorsdb')
+
+#print(connection.tables()) 
+
+with open('test.csv') as dataset_file:
+    id = 0 
+    dataset_file = csv.reader(dataset_file, delimiter=',')
+    for row_dataset in dataset_file:
+        for j in range(rows):
+            row_table = {   'idTimecf:col1' : str(j) + row_dataset[0],
+                            'idTimecf:col2' : row_dataset[1] }
+            for i in range(colums):
+                name = 'measurecf' + str(i) + ":col1"
+                row_table[name] = row_dataset[2]
+
+            for key, value in row_table.items():
+                print(key, ' : ', value)
+     
+            print("---------------------")
+            table.put(str(id), row_table)
+            id = id +1
+            
+
