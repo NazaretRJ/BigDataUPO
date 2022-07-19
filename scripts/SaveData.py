@@ -1,3 +1,4 @@
+from ast import Str
 import happybase
 import sys
 import csv
@@ -25,6 +26,7 @@ for i in range(colums):
     families[name] = dict(max_versions=1)
     
 if( connection.is_table_enabled('sensorsdb')):
+    print("The table is alredy created, so it is going to be deleted")
     connection.delete_table('sensorsdb', True) 
 
 connection.create_table('sensorsdb', families)
@@ -52,3 +54,14 @@ with open('test.csv') as dataset_file:
             id = id +1
             
 
+print("Please insert the number of the measure colum you want to extract (C) : ")
+measureColum = int(input())
+
+print("Please insert the number of the sensor identification  you want to extract(F) : ")
+idsensor = int(input())
+
+
+for key, data in table.scan(columns=['idTimecf:col1', 'idTimecf:col2','measurecf'+str(measureColum)+':col1'],
+                            filter="SingleColumnValueFilter('idTimecf','col1',=,'binaryprefix:{}')".format(str(idsensor))):
+    print(str(key) + " : " + str(data))
+    
