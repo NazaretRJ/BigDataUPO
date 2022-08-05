@@ -1,7 +1,10 @@
 from ast import Str
+from sqlite3 import Timestamp
 import happybase
 import sys
 import csv
+import time
+import datetime
 
 connection = happybase.Connection('localhost')
 
@@ -33,10 +36,7 @@ connection.create_table('sensorsdb', families)
 
 table = connection.table('sensorsdb')
 
-#print(connection.tables()) 
-
 with open('test.csv') as dataset_file:
-    id = 0 
     dataset_file = csv.reader(dataset_file, delimiter=',')
     for row_dataset in dataset_file:
         for j in range(rows):
@@ -46,22 +46,18 @@ with open('test.csv') as dataset_file:
                 name = 'measurecf' + str(i) + ":col1"
                 row_table[name] = row_dataset[2]
 
-            for key, value in row_table.items():
-                print(key, ' : ', value)
-     
-            print("---------------------")
-            table.put(str(id), row_table)
-            id = id +1
-            
-
+            timestamp = time.mktime(datetime.datetime.strptime(row_dataset[1], "%Y-%m-%d %H:%M").timetuple())
+            print(str(j) + "-" + row_dataset[0] + "-" + str(int(timestamp)))
+            table.put( str(j) + "-" + row_dataset[0] + str(int(timestamp)), row_table, int(timestamp))
+           
 print("Please insert the number of the measure colum you want to extract (C) : ")
 measureColum = int(input())
 
 print("Please insert the number of the sensor identification  you want to extract(F) : ")
 idsensor = int(input())
 
-
-for key, data in table.scan(columns=['idTimecf:col1', 'idTimecf:col2','measurecf'+str(measureColum)+':col1'],
-                            filter="SingleColumnValueFilter('idTimecf','col1',=,'binaryprefix:{}')".format(str(idsensor))):
-    print(str(key) + " : " + str(data))
-    
+try:
+    for key, data in table.scan(row_prefix=b"%d" % idsensor, columns=['idTimecf:col1', 'idTimecf:col2','measurecf'+str(measureColum)+':col1']):
+        print(key, data)
+except Exception as e:
+    print(e)
