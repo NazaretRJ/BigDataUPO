@@ -1,9 +1,16 @@
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col}
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+import java.io.{BufferedWriter, FileWriter}
+import au.com.bytecode.opencsv.CSVWriter
+import scala.collection.mutable.ListBuffer
+import java.util.List
 
 case class SensorValue(sensor: String, date: String, values: Array[String] )
-  
+case class SensorAverage(sensor: String, date: String, values: Array[String] )
+
 object Ejercicio1 {
   
   
@@ -22,13 +29,64 @@ object Ejercicio1 {
       )
       
       println("AA")
-      val sensorRdd = database.filter(_.sensor == "DG1000420")
+      val sensorRdd = database.filter(_.sensor == "DG1000420").sortBy(_.date, false)
       sensorRdd.foreach(println)
 
 //      aux.orderBy(col("date").asc).show(false)
       println("FIN")
       
+      //sensorRdd.saveAsTextFile("out.csv")
+//      val out = new BufferedWriter(new FileWriter("./out.csv"))
+//      val writer = new CSVWriter(out)
+//      
+//      var average = 0
+//      var currentAverage = 0
+//      val list = sensorRdd.collect()
+//      var sensorList = Array[String]()
+//      var bigList = ListBuffer[Array[String]]()
+//        
+//      for( sensor <- sensorRdd)
+//      {
+//         sensorList :+ sensor.sensor
+//         sensorList :+ sensor.date
+//         
+//         for(value <- sensor.values)
+//         {
+//           sensorList :+ value
+//           currentAverage = value.toInt + currentAverage
+//         }
+//         currentAverage = currentAverage / sensor.values.size
+//         sensorList :+ average.toString
+//         average = currentAverage       
+//         
+//         bigList += sensorList
+//         
+//         sensorList = Array[String]()
+//      }
+//      val auxList = bigList.toList
+//      
+//      writer.writeAll()
       
+      
+      //      var average = 0
+//      var previous = sensorRdd.first
+//      var first = true
+//      val averageRdd = sensorRdd.map( row =>
+//      {
+//        if(first)
+//        {
+//          first = false
+//          SensorAverage(row(0), row(1), row.slice(2, row.length))
+//        }
+//        else{
+//          foreach( value, row.slice(2, row.length))
+//          {
+//            
+//          }
+//        }
+//        
+//        previous = row
+//      })
 //    val processed = rddFromFile.map(f=>{
 //      f.split(",")
 //    })
