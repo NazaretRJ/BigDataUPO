@@ -5,10 +5,10 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.Column
+import java.io._ 
 
 case class SensorValue(sensor: String, date: String, values: Array[Double] )
 case class SensorAverage(sensor: String, date: String, values: Array[Double], average : Double )
-//case class SensorAverageBad(sensor: String, date: String, values: String, average : Double )
 
 object Ejercicio1 {
   
@@ -73,12 +73,24 @@ object Ejercicio1 {
       
       )
       
+      val file = new File("./out.csv")
+      val bw = new BufferedWriter(new FileWriter(file))
       
-      outRdd.foreach(println)
-      val outdf = session.createDataFrame(outRdd)
-
-      outdf.write.mode(SaveMode.Overwrite).csv("./out.csv");
-    
+      outRdd.take(2).foreach(row => 
+        {
+          bw.write(row.sensor)
+          bw.write(" , ")
+          bw.write(row.date);
+          for(i <- 0 until row.values.size)
+          {
+            bw.write(" , ")
+            bw.write(row.values(i).toString)
+          }
+          bw.newLine()
+          bw.flush()
+        }
+        )
+    bw.close()
    
   }
 }
