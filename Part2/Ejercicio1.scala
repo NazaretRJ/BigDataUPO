@@ -47,7 +47,12 @@ object Ejercicio1 {
       var average = 0.0
       var currentAverage = 0.0
       
-      
+      /*
+       * We loop twice the same RDD to calculate the average and then to write in the file.
+       * 
+       * Pros: This way: we can order the outRdd by another field.
+       * Cons: We are doing more processing and we need more memory
+       
       val outRdd = sensorRdd.map( row =>
       {
         if(currentAverage == 0 || row.values.size == 0)
@@ -69,7 +74,7 @@ object Ejercicio1 {
       }
       
       )
-    
+      
       val file = new File("./out.csv")
       val bw = new BufferedWriter(new FileWriter(file))
       
@@ -91,6 +96,51 @@ object Ejercicio1 {
         }
         )
     bw.close()
-   
+    * */
+    /*
+     * We calculate the average while we are saving in the file.
+     * Pros: We don't create another RDD and we don't loop twice. So we are saving resources.
+     * Cons: It is limited to the order.
+     * */
+     
+     val file = new File("./out.csv")
+     val bw = new BufferedWriter(new FileWriter(file))
+    
+      sensorRdd.collect.foreach( row =>
+      {
+        if(currentAverage == 0 || row.values.size == 0)
+        {
+          average = 0.0
+        }
+        else
+        {
+          average = currentAverage / row.values.size.toDouble
+        }
+         
+        currentAverage = 0.0
+        
+        bw.write(row.sensor)
+        bw.write(" , ")
+        bw.write(row.date);
+        bw.write(" , ")
+          
+        for(i <- 0 until row.values.size)
+        {
+          currentAverage = currentAverage + row.values(i)
+          
+          bw.write(row.values(i).toString)
+          bw.write(" , ")  
+        }
+        
+        bw.write(average.toString)
+        
+        bw.newLine()
+        bw.flush()
+      }
+      
+      )
+      
+      
+    
   }
 }
