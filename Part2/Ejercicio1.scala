@@ -1,108 +1,83 @@
-import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.{col}
-import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
-import java.io.{BufferedWriter, FileWriter}
-import au.com.bytecode.opencsv.CSVWriter
-import scala.collection.mutable.ListBuffer
-import java.util.List
+import org.apache.spark.sql.{Row, SparkSession}
+import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.Column
 
-case class SensorValue(sensor: String, date: String, values: Array[String] )
-case class SensorAverage(sensor: String, date: String, values: Array[String] )
+case class SensorValue(sensor: String, date: String, values: Array[Double] )
+case class SensorAverage(sensor: String, date: String, values: Array[Double], average : Double )
+//case class SensorAverageBad(sensor: String, date: String, values: String, average : Double )
 
 object Ejercicio1 {
   
   
   def main(args: Array[String]):Unit = {
     
-    val conf = new SparkConf().setAppName("Ejercicio1P2").setMaster("local")
-    val sc = new SparkContext(conf)
-    val filerdd = sc.textFile("./consumo.csv").cache() //Data es un RDD que tiene el fichero de texto distribuido
-    val notHeaderRDD = filerdd.mapPartitionsWithIndex { (idx, iter) => if (idx == 0) iter.drop(1) else iter }
-    val aux = notHeaderRDD.map(row => row.split(",").map(field => field.trim))
+    val session = SparkSession.builder()
+      .master("local")
+      .appName("Ejercicio1P2")
+      .getOrCreate();
     
-    val database = aux.map(row=>
+    import session.implicits._
+    
+    val dataframe = session.read.options(Map("header"->"true")).options(Map("delimiter"->",")).format("csv").load("./consumo.csv").cache()
+   
+    val rdd = dataframe.rdd
+    var array = new ArrayBuffer[Double]()
+    val classrdd = rdd.map(row=>
       {
-          SensorValue(row(0), row(1), row.slice(2, row.length))
+        array = ArrayBuffer[Double]()
+        for(i <- 2 until row.size)
+        {
+          if(row(i) == null || row(i) == "")
+          {
+            array.append(0.0)
+          }
+          else
+          {
+            array.append(row(i).toString.toDouble)
+          }
+        }
+          SensorValue(row(0).toString(), row(1).toString(), array.toArray)
       }
       )
+  
+      val sensorRdd = classrdd.filter(_.sensor == "DG1000420").sortBy(_.date, false)
       
-      println("AA")
-      val sensorRdd = database.filter(_.sensor == "DG1000420").sortBy(_.date, false)
-      sensorRdd.foreach(println)
+      var average = 0.0
+      var currentAverage = 0.0
+      
+      var rowS = "" 
+      
+      val outRdd = sensorRdd.map( row =>
+      {
+        if(currentAverage == 0 || row.values.size == 0)
+        {
+          average = 0.0
+        }
+        else
+        {
+          average = currentAverage / row.values.size.toDouble
+        }
+         
+        currentAverage = 0.0
+         
+        for(i <- 0 until row.values.size)
+        {
+          currentAverage = currentAverage + row.values(i)
+        }
+         SensorAverage(row.sensor, row.date, row.values, average)
+      }
+      
+      )
+      
+      
+      outRdd.foreach(println)
+      val outdf = session.createDataFrame(outRdd)
 
-//      aux.orderBy(col("date").asc).show(false)
-      println("FIN")
-      
-      //sensorRdd.saveAsTextFile("out.csv")
-//      val out = new BufferedWriter(new FileWriter("./out.csv"))
-//      val writer = new CSVWriter(out)
-//      
-//      var average = 0
-//      var currentAverage = 0
-//      val list = sensorRdd.collect()
-//      var sensorList = Array[String]()
-//      var bigList = ListBuffer[Array[String]]()
-//        
-//      for( sensor <- sensorRdd)
-//      {
-//         sensorList :+ sensor.sensor
-//         sensorList :+ sensor.date
-//         
-//         for(value <- sensor.values)
-//         {
-//           sensorList :+ value
-//           currentAverage = value.toInt + currentAverage
-//         }
-//         currentAverage = currentAverage / sensor.values.size
-//         sensorList :+ average.toString
-//         average = currentAverage       
-//         
-//         bigList += sensorList
-//         
-//         sensorList = Array[String]()
-//      }
-//      val auxList = bigList.toList
-//      
-//      writer.writeAll()
-      
-      
-      //      var average = 0
-//      var previous = sensorRdd.first
-//      var first = true
-//      val averageRdd = sensorRdd.map( row =>
-//      {
-//        if(first)
-//        {
-//          first = false
-//          SensorAverage(row(0), row(1), row.slice(2, row.length))
-//        }
-//        else{
-//          foreach( value, row.slice(2, row.length))
-//          {
-//            
-//          }
-//        }
-//        
-//        previous = row
-//      })
-//    val processed = rddFromFile.map(f=>{
-//      f.split(",")
-//    })
-        //val processed = rddFromFile.map(row => row.split(",").map(field => field.trim))
-    
-//    val rdd = processed.mapPartitionsWithIndex { (idx, iter) => if (idx == 0) iter.drop(1) else iter }
-//
-//                    
-//    val data = rdd.filter(f => f(0).toString() == "DG1000420").collect
-//    
-//    data.foreach(println)
-
-    //val wc = data.flatMap(_.split(",")).map((_,1)).reduceByKey(_ + _) //código del contador de palabras
-    // map tiene la palabra y un 1. Al hacer reduce junta las palabras y suma los valores
-    
-    //wc.foreach(println) //imprimo todos los elementos del RDD wc
+      outdf.write.mode(SaveMode.Overwrite).csv("./out.csv");
     
    
   }
