@@ -1,4 +1,5 @@
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 import scala.collection.mutable.ArrayBuffer
@@ -15,18 +16,15 @@ object Ejercicio1 {
   
   def main(args: Array[String]):Unit = {
     
-    val session = SparkSession.builder()
-      .master("local")
-      .appName("Ejercicio1P2")
-      .getOrCreate();
+    val conf = new SparkConf().setAppName("Ejercicio1P2").setMaster("local")
+    val sc = new SparkContext(conf)
+    val fileRdd = sc.textFile("./consumo.csv").cache() //Data es un RDD que tiene el fichero de texto distribuido
+    val notHeaderRDD = fileRdd.mapPartitionsWithIndex { (idx, iter) => if (idx == 0) iter.drop(1) else iter }
+    val notDelimiterRdd = notHeaderRDD.map(row => row.split(",").map(field => field.trim))
+ 
     
-    import session.implicits._
-    
-    val dataframe = session.read.options(Map("header"->"true")).options(Map("delimiter"->",")).format("csv").load("./consumo.csv").cache()
-   
-    val rdd = dataframe.rdd
     var array = new ArrayBuffer[Double]()
-    val classrdd = rdd.map(row=>
+    val classrdd = notDelimiterRdd.map(row=>
       {
         array = ArrayBuffer[Double]()
         for(i <- 2 until row.size)
@@ -49,7 +47,6 @@ object Ejercicio1 {
       var average = 0.0
       var currentAverage = 0.0
       
-      var rowS = "" 
       
       val outRdd = sensorRdd.map( row =>
       {
@@ -72,20 +69,23 @@ object Ejercicio1 {
       }
       
       )
-      
+    
       val file = new File("./out.csv")
       val bw = new BufferedWriter(new FileWriter(file))
       
-      outRdd.take(2).foreach(row => 
+      outRdd.collect().foreach(row => 
         {
           bw.write(row.sensor)
           bw.write(" , ")
           bw.write(row.date);
+          bw.write(" , ")
           for(i <- 0 until row.values.size)
           {
-            bw.write(" , ")
             bw.write(row.values(i).toString)
+            bw.write(" , ")
           }
+          bw.write(row.average.toString)
+          
           bw.newLine()
           bw.flush()
         }
