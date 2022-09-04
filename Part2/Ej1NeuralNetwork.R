@@ -2,10 +2,19 @@ library(caret)
 
 myData = read.delim("./prediccion.txt", header = FALSE, sep=',')
 
-myData$V1 <- as.factor(myData$V1) #The date is a factor not
+myData$V1 <- as.factor(myData$V1) #The date is a factor
 
-#We just catch the 30% to train
-inTrain <- createDataPartition(y = myData$V146, p = .30, list = FALSE)
+#Normalize the average
+a = summary(myData$V146)
+max = a[6]
+
+for (i in 1: nrow(myData))
+{
+  myData[i, ]$V146 = myData[i, ]$V146 / max
+}
+
+#We just catch the 30% to test
+inTrain <- createDataPartition(y = myData$V146, p = .70, list = FALSE)
 
 training <- myData[ inTrain,]
 testing <- myData[-inTrain,]
@@ -13,12 +22,12 @@ testing <- myData[-inTrain,]
 nnetData = train(V146 ~ ., data = training, method="nnet",verbose = FALSE)
 
 #The summary of the average
-summary(myData$V146)
+summary(myData$V146) * max
 
 #Prediction
-pred <-predict(nnetData,newdata=testing)
+pred <-predict(nnetData,newdata=testing) * max
 
-obs <- testing$V146
+obs <- testing$V146 * max
 
 plot(pred, obs, main = "Observado frente a predicciones",
      xlab = "Predicción", ylab = "Observado")
