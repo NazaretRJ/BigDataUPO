@@ -18,12 +18,13 @@ object Ejercicio1 {
     
     val conf = new SparkConf().setAppName("Ejercicio1P2").setMaster("local")
     val sc = new SparkContext(conf)
-    val fileRdd = sc.textFile("./consumo.csv").cache() //Data es un RDD que tiene el fichero de texto distribuido
+    val fileRdd = sc.textFile("./consumo.csv").cache() //RDD que tiene el fichero de texto distribuido
     val notHeaderRDD = fileRdd.mapPartitionsWithIndex { (idx, iter) => if (idx == 0) iter.drop(1) else iter }
     val notDelimiterRdd = notHeaderRDD.map(row => row.split(",").map(field => field.trim))
  
     
     var array = new ArrayBuffer[Double]()
+    
     val classrdd = notDelimiterRdd.map(row=>
       {
         array = ArrayBuffer[Double]()
@@ -41,7 +42,7 @@ object Ejercicio1 {
           SensorValue(row(0).toString(), row(1).toString(), array.toArray)
       }
       )
-  
+      
       val sensorRdd = classrdd.filter(_.sensor == "DG1000420").sortBy(_.date, false)
       
       var average = 0.0
@@ -75,37 +76,28 @@ object Ejercicio1 {
       
       )
       
-      val file = new File("./out.csv")
-      val bw = new BufferedWriter(new FileWriter(file))
+      var header = new ArrayBuffer[String]()
+      val max = classrdd.first().values.length
+      header.append("Date")
+      header.append(",")
+      for(i <- 1 to max)
+      {
+        header.append("V"+i.toString);
+        header.append(",")
+      }
       
-      outRdd.collect().foreach(row => 
-        {
-          bw.write(row.sensor)
-          bw.write(" , ")
-          bw.write(row.date);
-          bw.write(" , ")
-          for(i <- 0 until row.values.size)
-          {
-            bw.write(row.values(i).toString)
-            bw.write(" , ")
-          }
-          bw.write(row.average.toString)
-          
-          bw.newLine()
-          bw.flush()
-        }
-        )
-    bw.close()
-    * */
-    /*
-     * We calculate the average while we are saving in the file.
-     * Pros: We don't create another RDD and we don't loop twice. So we are saving resources.
-     * Cons: It is limited to the order.
-     * */
-     
-     val file = new File("./out.csv")
+      header.append("Average")
+      
+     val file = new File("./prediccion.txt")
      val bw = new BufferedWriter(new FileWriter(file))
-    
+     
+      header.toList.foreach(x =>
+        {
+          bw.write(x)
+        })
+        bw.newLine()
+        bw.flush()
+        
       sensorRdd.collect.foreach( row =>
       {
         if(currentAverage == 0 || row.values.size == 0)
@@ -119,17 +111,76 @@ object Ejercicio1 {
          
         currentAverage = 0.0
         
-        bw.write(row.sensor)
-        bw.write(" , ")
         bw.write(row.date);
-        bw.write(" , ")
+        bw.write(",")
           
         for(i <- 0 until row.values.size)
         {
           currentAverage = currentAverage + row.values(i)
           
           bw.write(row.values(i).toString)
-          bw.write(" , ")  
+          bw.write(",")  
+        }
+        
+        bw.write(average.toString)
+        
+        bw.newLine()
+        bw.flush()
+      }
+      
+      )
+    bw.close()
+    * */
+    /*
+     * We calculate the average while we are saving in the file.
+     * Pros: We don't create another RDD and we don't loop twice. So we are saving resources.
+     * Cons: It is limited to the order.
+     * */
+     
+      var header = new ArrayBuffer[String]()
+      val max = classrdd.first().values.length
+      header.append("Date")
+      header.append(",")
+      for(i <- 1 to max)
+      {
+        header.append("V"+i.toString);
+        header.append(",")
+      }
+      
+      header.append("Average")
+      
+     val file = new File("./prediccion.txt")
+     val bw = new BufferedWriter(new FileWriter(file))
+     
+      header.toList.foreach(x =>
+        {
+          bw.write(x)
+        })
+        bw.newLine()
+        bw.flush()
+        
+      sensorRdd.collect.foreach( row =>
+      {
+        if(currentAverage == 0 || row.values.size == 0)
+        {
+          average = 0.0
+        }
+        else
+        {
+          average = currentAverage / row.values.size.toDouble
+        }
+         
+        currentAverage = 0.0
+        
+        bw.write(row.date);
+        bw.write(",")
+          
+        for(i <- 0 until row.values.size)
+        {
+          currentAverage = currentAverage + row.values(i)
+          
+          bw.write(row.values(i).toString)
+          bw.write(",")  
         }
         
         bw.write(average.toString)
@@ -140,7 +191,7 @@ object Ejercicio1 {
       
       )
       
-      
+      bw.close()
     
   }
 }
